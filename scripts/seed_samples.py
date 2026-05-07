@@ -13,7 +13,7 @@ def main() -> None:
         if not source_dir.exists():
             continue
         for file in source_dir.iterdir():
-            if file.is_file():
+            if file.is_file() and not file.name.startswith("."):
                 shutil.copy2(file, target / file.name)
                 copied += 1
     print(f"Copied {copied} sample files to {target}")

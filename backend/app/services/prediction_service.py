@@ -15,13 +15,37 @@ class PredictionService:
     ) -> ImpactPredictionResponse:
         feature_names = sorted(feature_vector.keys())
         registry = build_domain_registry(feature_names=feature_names)
+
+        # Sectors directly mentioned in policy get direction enforced.
+        primary_sectors = set(parsed_policy.sectors)
+        direction_sign = {
+            "increase": 1.0,
+            "decrease": -1.0,
+            "neutral": 0.0,
+        }[parsed_policy.direction]
+        intensity_scale = {"low": 0.4, "medium": 0.7, "high": 1.0}[parsed_policy.intensity]
+
         impacts: list[DomainImpact] = []
         for domain, model in registry.items():
-            predicted, raw_importance = model.predict(feature_vector)
+            raw_predicted, raw_importance = model.predict(feature_vector)
+
+            # ── Clamp to realistic bounds ──────────────────────────────────
+            # A single policy realistically moves a domain by -15% to +15%.
+            MAX_IMPACT = 0.15  # 15%
+            clamped = max(-MAX_IMPACT, min(MAX_IMPACT, raw_predicted))
+
+            if domain in primary_sectors and parsed_policy.direction != "neutral":
+                # Primary sector: enforce sign from parser, keep model magnitude.
+                magnitude = abs(clamped) * intensity_scale
+                predicted = direction_sign * max(magnitude, 0.01)
+            else:
+                # Secondary / ripple sectors: attenuate and keep model sign.
+                predicted = clamped * intensity_scale * 0.6
+
             direction = "neutral"
-            if predicted > 0.05:
+            if predicted > 0.005:
                 direction = "increase"
-            elif predicted < -0.05:
+            elif predicted < -0.005:
                 direction = "decrease"
 
             total = sum(raw_importance.values()) or 1.0
@@ -48,4 +72,3 @@ class PredictionService:
             impacts=impacts,
             generated_at=datetime.utcnow(),
         )
-

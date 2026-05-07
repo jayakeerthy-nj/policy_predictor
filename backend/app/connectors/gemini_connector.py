@@ -18,8 +18,12 @@ class GeminiConnector:
             f"{settings.gemini_model}:generateContent?key={settings.gemini_api_key}"
         )
         prompt = (
-            "You are an economic policy analyst. Explain baseline, shock, and policy-adjusted "
-            f"impacts in 4-5 lines using this JSON: {json.dumps(payload)}"
+            "You are an economic policy analyst. Based on this JSON data: "
+            f"{json.dumps(payload)}\n\n"
+            "1. Briefly explain the baseline, shock, and policy-adjusted impacts.\n"
+            "2. Provide a Final Verdict for the layman clearly stating:\n"
+            "   - Benefits if the policy gets implemented.\n"
+            "   - Disadvantages or risks to the common person."
         )
         body = {"contents": [{"parts": [{"text": prompt}]}]}
         try:
